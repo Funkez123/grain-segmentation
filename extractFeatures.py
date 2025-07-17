@@ -43,18 +43,22 @@ for image_path in image_files:
     blurred = cv2.GaussianBlur(gray, (7, 7), 0)
 
     # Threshold
-    _, thresh = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY)
 
     # Morphological closing to close gaps / noise removal
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1))
+    kernel_erroded = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+    kernel_background = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
 
+    opening = cv2.erode(opening, kernel_background, iterations=2)
+
     # Sure background
-    sure_bg = cv2.dilate(opening, kernel, iterations=10)
+    sure_bg = cv2.dilate(opening, kernel_erroded, iterations=3)
 
     # Distance transform segmentation
     dist = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-    _, sure_fg = cv2.threshold(dist, 0.3 * dist.max(), 255, 0)
+    _, sure_fg = cv2.threshold(dist, 0.35 * dist.max(), 255, 0)
 
     # Unknown region
     sure_fg = np.uint8(sure_fg)
