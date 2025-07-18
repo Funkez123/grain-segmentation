@@ -1,99 +1,83 @@
 import cv2
 import numpy as np
-import os
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 # Paths
-input_dir = Path("/home/daniel/Downloads/muesli/muesli_project")
-output_dir = Path("/home/daniel/Downloads/muesli/fitted_ellipses")
+input_dir = Path(r"C:\Users\danie\Documents\muesli\muesli_project")
+output_dir = Path(r"C:\Users\danie\Documents\muesli\fitted_ellipses")
 output_dir.mkdir(parents=True, exist_ok=True)
-
-# List all JPG/jpg files
-image_files = list(input_dir.glob("*.JPG")) + list(input_dir.glob("*.jpg"))
 
 # Resize factor
 scale = 0.5
 
-for image_path in image_files:
-    print(f"Processing: {image_path.name}")
+# Get image files
+image_files = list(input_dir.glob("*.JPG")) + list(input_dir.glob("*.jpg"))
+
+def process_image(image_path):
+    start_time = time.time()
     image = cv2.imread(str(image_path))
     if image is None:
-        print(f"Failed to read {image_path}")
-        continue
+        print(f"Failed to read {image_path.name}")
+        return
 
-    # Resize:
+    # Resize
     image = cv2.resize(image, (0, 0), fx=scale, fy=scale)
-    # Get image dimensions
     height, width = image.shape[:2]
-
-    # Determine the size of the square (min of height and width)
     min_dim = min(height, width)
-
-    # Compute the top-left corner of the square crop
     x_start = (width - min_dim) // 2
     y_start = (height - min_dim) // 2
-
-    # Crop the center square
     image = image[y_start:y_start + min_dim, x_start:x_start + min_dim]
 
-    # Convert to grayscale
+    # Convert to grayscale and threshold
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Blur
-    blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-
-    # Threshold
     _, thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY)
-
-    # Morphological closing to close gaps / noise removal
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1))
-    kernel_erroded = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+    
+    # Morphological operations
+    kernel_erroded = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     kernel_background = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
 
-    opening = cv2.erode(opening, kernel_background, iterations=2)
+    kernel_morph = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel_morph, iterations=2)
 
-    # Sure background
-    sure_bg = cv2.dilate(opening, kernel_erroded, iterations=3)
+    opening = cv2.erode(opening, kernel_erroded, iterations=8)
 
-    # Distance transform segmentation
+    # Distance transform and markers
+    sure_bg = cv2.dilate(opening, kernel_erroded, iterations=4)
     dist = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-    _, sure_fg = cv2.threshold(dist, 0.35 * dist.max(), 255, 0)
 
-    # Unknown region
+    _, sure_fg = cv2.threshold(dist, 0.30 * dist.max(), 255, 0)
+
     sure_fg = np.uint8(sure_fg)
     unknown = cv2.subtract(sure_bg, sure_fg)
-
-    # Marker labeling
     _, markers = cv2.connectedComponents(sure_fg)
-    markers = markers + 1 #sure background is 1 not 0
+    markers = markers + 1
     markers[unknown == 255] = 0
 
     # Watershed
-    #markers = cv2.watershed(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), markers)
     markers = cv2.watershed(image, markers)
-
     segmentation = np.uint8(markers > 1) * 255
 
-    # Find contours
+    # Fit ellipses
     contours, _ = cv2.findContours(segmentation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
     for contour in contours:
         if len(contour) >= 5:
             ellipse = cv2.fitEllipse(contour)
             (x, y), (major, minor), angle = ellipse
+            if major > 0 and minor > 0:
+                try:
+                    cv2.ellipse(image, ellipse, (0, 255, 0), 2)
+                except cv2.error:
+                    continue
 
-            if major <= 0 or minor <= 0:
-                continue
-
-            try:
-                cv2.ellipse(image, ellipse, (0, 255, 0), 2)
-            except cv2.error as e:
-                print(f"Skipped bad ellipse: {e}")
-                continue
-
-    # Save output image
+    # Save output
     output_path = output_dir / image_path.name
     cv2.imwrite(str(output_path), image)
+    print(f"{image_path.name} processed in {time.time() - start_time:.2f}s")
 
-print("All images processed and saved.")
+# Run multithreaded processing
+with ThreadPoolExecutor() as executor:
+    executor.map(process_image, image_files)
+
+print("All images processed.")
