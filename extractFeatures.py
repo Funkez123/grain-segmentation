@@ -9,7 +9,7 @@ import time
 # Paths
 input_dir = Path(r"C:\Users\danie\Documents\muesli\muesli_project")
 output_dir = Path(r"C:\Users\danie\Documents\muesli\fitted_ellipses")
-csv_path = output_dir / "ellipsen_merkmale.csv"
+csv_path = "ellipsen_merkmale.csv"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Resize factor
@@ -46,13 +46,13 @@ def process_image(image_path):
 
     opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
 
-    opening = cv2.erode(opening, kernel, iterations=7)
+    opening = cv2.erode(opening, kernel, iterations=5)
 
     # Distance transform and markers
     sure_bg = cv2.dilate(opening, kernel, iterations=4)
     dist = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
 
-    _, sure_fg = cv2.threshold(dist, 0.30 * dist.max(), 255, 0)
+    _, sure_fg = cv2.threshold(dist, 0.25 * dist.max(), 255, 0)
 
     sure_fg = np.uint8(sure_fg)
     unknown = cv2.subtract(sure_bg, sure_fg)
@@ -64,62 +64,64 @@ def process_image(image_path):
     markers = cv2.watershed(image, markers)
     segmentation = np.uint8(markers > 1) * 255
 
-    # Kopie des Originalbilds zur Farbanalyse
+    # image copy for color analysis
     orig_image = image.copy()
 
-    # Für jeden Marker (ab 2, da 0 = unbekannt, 1 = Hintergrund)
+    # iterating through each marker, starting at 2 because 0 = unknown and 1 = background
     for marker_id in range(2, np.max(markers) + 1):
-        # Maske erstellen für den aktuellen Marker
         mask = np.uint8(markers == marker_id)
-
-        # Konturen des Bereichs finden (optional für Ellipse)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if len(contours) == 0 or len(contours[0]) < 5:
             continue
 
-        # Ellipse fitten
         ellipse = cv2.fitEllipse(contours[0])
         (x, y), (major, minor), angle = ellipse
 
-        # Farbe im maskierten Bereich berechnen (Mittelwert in RGB)
-        mean_color = cv2.mean(orig_image, mask=mask)
-        mean_r, mean_g, mean_b = mean_color[:3]
+        # size and location filter
+        if major > 80 or minor > 220 or major < 20 or minor < 20 or x < 100 or x > 1000 or y < 100 or y > 1000:
+            continue
+        
+        aspect_ratio =  major / minor
 
-        # Optional: Maske anzeigen/debuggen
-        # cv2.imshow("Mask", mask * 255)
-        # cv2.waitKey(0)
+        ellipse_area = np.pi * (major / 2) * (minor / 2)
+        contour_area = cv2.contourArea(contours[0])
+        solidity = contour_area / ellipse_area
 
+
+        # R G and B color channel seperation
+        masked_pixels = orig_image[mask == 1]  # Shape: (N, 3), N = Anzahl Pixel im Segment
+        gray_masked_pixels = gray[mask == 1]
+
+        if masked_pixels.size == 0:
+            continue 
+
+        mean_r, mean_g, mean_b = np.mean(masked_pixels, axis=0)
+        #std_r, std_g, std_b = np.std(masked_pixels, axis=0)
+
+        roughness = np.std(gray_masked_pixels, axis=0)
+
+        # try drawing the ellipses
+        try:
+            cv2.ellipse(image, ellipse, (0, 255, 0), 2)
+        except cv2.error:
+            continue
+
+        # buffer data for csv
         ellipse_data.append({
-            "bild": image_path.name,
+            "image": image_path.name,
             "cx": x,
             "cy": y,
-            "major": max(major, minor) / 2,
-            "minor": min(major, minor) / 2,
             "angle": angle,
-            "mean_r": mean_r,
-            "mean_g": mean_g,
-            "mean_b": mean_b
+            "major": max(major, minor) / 2,  # Halbachse
+            "minor": min(major, minor) / 2,  # Halbachse
+            "contour_area" : contour_area,
+            "aspect_ratio": aspect_ratio,
+            "solidity" : solidity,
+            "mean_red": mean_r,
+            "mean_green": mean_g,
+            "mean_blue": mean_b,
+            "roughness" : roughness
         })
-
-    # Fit ellipses
-    contours, _ = cv2.findContours(segmentation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for contour in contours:
-        if len(contour) >= 5:
-            ellipse = cv2.fitEllipse(contour)
-            (x, y), (major, minor), angle = ellipse
-            if major > 20 and minor > 20 and minor < 220 and major < 80: #only plausible ellipses
-                try:
-                    cv2.ellipse(image, ellipse, (0, 255, 0), 2)
-                    ellipse_data.append({
-                        "bild": image_path.name,
-                        "cx": x,
-                        "cy": y,
-                        "major": max(major, minor) / 2,  # Halbachse
-                        "minor": min(major, minor) / 2,  # Halbachse
-                        "angle": angle
-                    })
-                except cv2.error:
-                    continue
 
     # Save output
     output_path = output_dir / image_path.name
@@ -132,12 +134,12 @@ with ThreadPoolExecutor() as executor:
 
 print("All images processed.")
 
-# Daten als DataFrame speichern
+#save data as pandas dataframe
 df = pd.DataFrame(ellipse_data)
 df.to_csv(csv_path, index=False)
-print(f"\nMerkmalsdaten gespeichert unter: {csv_path}")
+print(f"\nAll ellipse data saved under: {csv_path}")
 
-# Statistik und Plot
+# statistics and plots
 if not df.empty:
     stats = df[["major", "minor"]].agg(["mean", "std"])
     print("\nStatistiken:")
@@ -156,7 +158,7 @@ if not df.empty:
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(output_dir / "ellipse_statistik.png")
+    plt.savefig(output_dir / "ellipse_statistics.png")
     plt.show()
 
-print("Alle Bilder verarbeitet und Merkmale statistisch ausgewertet.")
+print("All images have been analyzed")
