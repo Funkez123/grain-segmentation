@@ -9,7 +9,7 @@ import time
 # Paths
 input_dir = Path(r"C:\Users\danie\Documents\muesli\muesli_project")
 output_dir = Path(r"C:\Users\danie\Documents\muesli\fitted_ellipses")
-csv_path = "ellipsen_merkmale.csv"
+csv_path = "features.csv"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Resize factor
