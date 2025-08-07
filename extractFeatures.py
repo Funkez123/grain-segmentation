@@ -135,10 +135,10 @@ computation_time = global_end_time-global_start_time
 print(f"Processing Time for 476 images: {computation_time:.2f}s")
 print("All images processed.")
 
-# #save data as pandas dataframe
-# df = pd.DataFrame(ellipse_data)
-# df.to_csv(csv_path, index=False)
-# print(f"\nAll ellipse data saved under: {csv_path}")
+#save data as pandas dataframe
+df = pd.DataFrame(ellipse_data)
+df.to_csv(csv_path, index=False)
+print(f"\nAll ellipse data saved under: {csv_path}")
 
 # # statistics and plots
 # if not df.empty:
