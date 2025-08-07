@@ -77,7 +77,7 @@ def process_image(image_path):
         (x, y), (major, minor), angle = ellipse
 
         # size and location filter
-        if major > 80 or minor > 220 or major < 20 or minor < 20 or x < 100 or x > 1000 or y < 100 or y > 1000:
+        if major > 80 or minor > 220 or major < 30 or minor < 25 or x < 100 or x > 1000 or y < 100 or y > 1000:
             continue
         
         aspect_ratio =  major / minor
