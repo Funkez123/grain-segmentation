@@ -7,8 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 
 # Paths
-input_dir = Path(r"C:\Users\danie\Documents\muesli\muesli_project")
-output_dir = Path(r"C:\Users\danie\Documents\muesli\fitted_ellipses")
+input_dir = Path(r"muesli_projekt")
+output_dir = Path(r"fitted_ellipses")
 csv_path = "features.csv"
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -21,6 +21,7 @@ image_files = list(input_dir.glob("*.JPG")) + list(input_dir.glob("*.jpg"))
 # Liste für Merkmal-Daten
 ellipse_data = []
 
+global_start_time = time.time()
 
 def process_image(image_path):
     start_time = time.time()
@@ -40,18 +41,16 @@ def process_image(image_path):
     # Convert to grayscale and threshold
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY)
-    
-    # Morphological operations
+
+    # Morphological operations (noise reduction)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-
     opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
-
     opening = cv2.erode(opening, kernel, iterations=5)
 
     # Distance transform and markers
     sure_bg = cv2.dilate(opening, kernel, iterations=4)
-    dist = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
 
+    dist = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
     _, sure_fg = cv2.threshold(dist, 0.25 * dist.max(), 255, 0)
 
     sure_fg = np.uint8(sure_fg)
@@ -87,7 +86,6 @@ def process_image(image_path):
         contour_area = cv2.contourArea(contours[0])
         solidity = contour_area / ellipse_area
 
-
         # R G and B color channel seperation
         masked_pixels = orig_image[mask == 1]  # Shape: (N, 3), N = Anzahl Pixel im Segment
         gray_masked_pixels = gray[mask == 1]
@@ -102,7 +100,7 @@ def process_image(image_path):
 
         # try drawing the ellipses
         try:
-            cv2.ellipse(image, ellipse, (0, 255, 0), 2)
+            cv2.ellipse(image, ellipse, (0, 255, 0), 4)
         except cv2.error:
             continue
 
@@ -132,33 +130,36 @@ def process_image(image_path):
 with ThreadPoolExecutor() as executor:
     executor.map(process_image, image_files)
 
+global_end_time = time.time()
+computation_time = global_end_time-global_start_time
+print(f"Processing Time for 476 images: {computation_time:.2f}s")
 print("All images processed.")
 
-#save data as pandas dataframe
-df = pd.DataFrame(ellipse_data)
-df.to_csv(csv_path, index=False)
-print(f"\nAll ellipse data saved under: {csv_path}")
+# #save data as pandas dataframe
+# df = pd.DataFrame(ellipse_data)
+# df.to_csv(csv_path, index=False)
+# print(f"\nAll ellipse data saved under: {csv_path}")
 
-# statistics and plots
-if not df.empty:
-    stats = df[["major", "minor"]].agg(["mean", "std"])
-    print("\nStatistiken:")
-    print(stats)
+# # statistics and plots
+# if not df.empty:
+#     stats = df[["major", "minor"]].agg(["mean", "std"])
+#     print("\nStatistiken:")
+#     print(stats)
 
-    # Plot
-    plt.figure(figsize=(8, 5))
-    for col in ["major", "minor"]:
-        plt.errorbar(
-            col, stats.loc["mean", col],
-            yerr=stats.loc["std", col],
-            fmt='o', capsize=5, label=f"{col.capitalize()}-Achse"
-        )
-    plt.title("Mittelwerte und Standardabweichungen der Ellipsenhalbachsen")
-    plt.ylabel("Pixel")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_dir / "ellipse_statistics.png")
-    plt.show()
+#     # Plot
+#     plt.figure(figsize=(8, 5))
+#     for col in ["major", "minor"]:
+#         plt.errorbar(
+#             col, stats.loc["mean", col],
+#             yerr=stats.loc["std", col],
+#             fmt='o', capsize=5, label=f"{col.capitalize()}-Achse"
+#         )
+#     plt.title("Mittelwerte und Standardabweichungen der Ellipsenhalbachsen")
+#     plt.ylabel("Pixel")
+#     plt.legend()
+#     plt.grid(True)
+#     plt.tight_layout()
+#     plt.savefig(output_dir / "ellipse_statistics.png")
+#     plt.show()
 
 print("All images have been analyzed")

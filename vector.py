@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 # Input/output paths
-csv_path = Path(r"C:\Users\danie\Documents\muesli\features.csv")
+csv_path = Path(r"/Users/danielanders/projekte/grain-segmentation/features.csv")
 output_csv_path = csv_path.parent / "aggregated_features_per_image.csv"
 
 # Load mapping from variety mapping CSV
