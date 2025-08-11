@@ -140,26 +140,26 @@ df = pd.DataFrame(ellipse_data)
 df.to_csv(csv_path, index=False)
 print(f"\nAll ellipse data saved under: {csv_path}")
 
-# # statistics and plots
-# if not df.empty:
-#     stats = df[["major", "minor"]].agg(["mean", "std"])
-#     print("\nStatistiken:")
-#     print(stats)
+# statistics and plots
+if not df.empty:
+    stats = df[["major", "minor"]].agg(["mean", "std"])
+    print("\nStatistiken:")
+    print(stats)
 
-#     # Plot
-#     plt.figure(figsize=(8, 5))
-#     for col in ["major", "minor"]:
-#         plt.errorbar(
-#             col, stats.loc["mean", col],
-#             yerr=stats.loc["std", col],
-#             fmt='o', capsize=5, label=f"{col.capitalize()}-Achse"
-#         )
-#     plt.title("Mittelwerte und Standardabweichungen der Ellipsenhalbachsen")
-#     plt.ylabel("Pixel")
-#     plt.legend()
-#     plt.grid(True)
-#     plt.tight_layout()
-#     plt.savefig(output_dir / "ellipse_statistics.png")
-#     plt.show()
+    # Plot
+    plt.figure(figsize=(5, 3))
+    for col in ["major", "minor"]:
+        plt.errorbar(
+            col, stats.loc["mean", col],
+            yerr=stats.loc["std", col],
+            fmt='o', capsize=5, label=f"{col.capitalize()}-Achse"
+        )
+    plt.title("Halbachsen der Ellipsen")
+    plt.ylabel("Pixel")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("ellipse_statistics.png")
+    #plt.show()
 
 print("All images have been analyzed")
