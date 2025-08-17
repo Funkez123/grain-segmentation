@@ -11,17 +11,17 @@ plt.figure(figsize=(12, 5))
 # Histogram for contour_area_mean
 plt.subplot(1, 2, 1)
 plt.hist(df['contour_area_mean'], bins=20, color='lightgreen', edgecolor='black')
-plt.title('Histogram of Contour Area Mean', fontsize=14)
-plt.xlabel('Contour Area (20 bins)')
-plt.ylabel('Frequency')
+plt.title('Histogram gemittelter Konturfläche', fontsize=14)
+plt.xlabel('Konturfläche (20 bins)')
+plt.ylabel('Häufigkeit')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 
 # Histogram for aspect_ratio_mean
 plt.subplot(1, 2, 2)
 plt.hist(df['aspect_ratio_mean'], bins=20, color='plum', edgecolor='black')
-plt.title('Histogram of Aspect Ratio Mean', fontsize=14)
-plt.xlabel('Aspect Ratio (20 bins)')
-plt.ylabel('Frequency')
+plt.title('Histogram des gemittelten Seitenverhältnis (aspect ratio)', fontsize=14)
+plt.xlabel('Seitenverhältnis (20 bins)')
+plt.ylabel('Häufigkeit')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 
 plt.tight_layout()

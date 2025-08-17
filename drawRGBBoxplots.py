@@ -15,8 +15,8 @@ plt.boxplot(
     medianprops=dict(color='red', linewidth=2)
 )
 
-plt.title('Distribution of average RGB values', fontsize=14)
-plt.ylabel('average channel value', fontsize=12)
+plt.title('Verteilung gemittelter RGB Werte', fontsize=14)
+plt.ylabel('gemittelter Wert des Farbkanals', fontsize=12)
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.savefig("avg_color_values.png")
